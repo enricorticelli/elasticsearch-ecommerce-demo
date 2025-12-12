@@ -40,6 +40,28 @@ Questa è un'applicazione e-commerce completa con:
 
 ## Avvio Rapido con Docker Compose
 
+### Opzione 1: Script Automatico
+
+**Linux/Mac:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+**Windows:**
+```bash
+start.bat
+```
+
+Questo script:
+- Avvia Elasticsearch e Kibana
+- Attende che i servizi siano pronti
+- Avvia l'API backend
+- Inizializza l'indice
+- Genera 100 prodotti di esempio
+
+### Opzione 2: Manuale
+
 1. Clona il repository:
 ```bash
 git clone https://github.com/enricorticelli/elasticsearch-ecommerce-demo.git
@@ -48,7 +70,7 @@ cd elasticsearch-ecommerce-demo
 
 2. Avvia tutti i servizi:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 3. Attendi che tutti i servizi siano pronti (circa 1-2 minuti)
