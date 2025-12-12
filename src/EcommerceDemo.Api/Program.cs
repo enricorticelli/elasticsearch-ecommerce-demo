@@ -20,7 +20,9 @@ builder.Services.AddCors(options =>
 
 // Configure Elasticsearch client
 var elasticsearchUri = builder.Configuration.GetConnectionString("elasticsearch") ?? "http://localhost:9200";
-builder.Services.AddSingleton(new ElasticsearchClient(new Uri(elasticsearchUri)));
+var settings = new ElasticsearchClientSettings(new Uri(elasticsearchUri))
+    .DisableDirectStreaming();
+builder.Services.AddSingleton(new ElasticsearchClient(settings));
 
 var app = builder.Build();
 
@@ -100,58 +102,65 @@ app.MapGet("/api/products/search", async (ElasticsearchClient client, string? q 
     
     var from = (page - 1) * pageSize;
     
-    // Build query outside the fluent API
-    Query buildQuery()
+    try
     {
-        var mustQueries = new List<Query>();
-        
-        if (!string.IsNullOrWhiteSpace(q))
+        // Build query outside the fluent API
+        Query buildQuery()
         {
-            mustQueries.Add(new MultiMatchQuery
+            var mustQueries = new List<Query>();
+            
+            if (!string.IsNullOrWhiteSpace(q))
             {
-                Query = q,
-                Fields = new[] { "name^2", "description", "brand", "category" }
+                mustQueries.Add(new MultiMatchQuery
+                {
+                    Query = q,
+                    Fields = new Elastic.Clients.Elasticsearch.Field[] { "name", "description", "brand", "category" }
+                });
+            }
+            
+            if (!string.IsNullOrWhiteSpace(brand))
+            {
+                mustQueries.Add(new TermQuery { Field = "brand.keyword", Value = brand });
+            }
+            
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                mustQueries.Add(new TermQuery { Field = "category.keyword", Value = category });
+            }
+            
+            if (mustQueries.Count == 0)
+            {
+                return new MatchAllQuery();
+            }
+            
+            return new BoolQuery { Must = mustQueries };
+        }
+        
+        var searchResponse = await client.SearchAsync<Product>(s => s
+            .Indices(indexName)
+            .From(from)
+            .Size(pageSize)
+            .Query(buildQuery())
+            .Sort(sort => sort.Field(f => f.CreatedAt, descriptor => descriptor.Order(SortOrder.Desc)))
+        );
+        
+        if (searchResponse.IsValidResponse)
+        {
+            return Results.Ok(new
+            {
+                total = searchResponse.Total,
+                page,
+                pageSize,
+                products = searchResponse.Documents
             });
         }
         
-        if (!string.IsNullOrWhiteSpace(brand))
-        {
-            mustQueries.Add(new TermQuery { Field = "brand", Value = brand });
-        }
-        
-        if (!string.IsNullOrWhiteSpace(category))
-        {
-            mustQueries.Add(new TermQuery { Field = "category", Value = category });
-        }
-        
-        if (mustQueries.Count == 0)
-        {
-            return new MatchAllQuery();
-        }
-        
-        return new BoolQuery { Must = mustQueries };
+        return Results.Problem($"Search failed: {searchResponse.ElasticsearchServerError?.Error?.Reason ?? "Unknown error"}");
     }
-    
-    var searchResponse = await client.SearchAsync<Product>(s => s
-        .Indices(indexName)
-        .From(from)
-        .Size(pageSize)
-        .Query(buildQuery())
-        .Sort(sort => sort.Field(f => f.CreatedAt, descriptor => descriptor.Order(SortOrder.Desc)))
-    );
-    
-    if (searchResponse.IsValidResponse)
+    catch (Exception ex)
     {
-        return Results.Ok(new
-        {
-            total = searchResponse.Total,
-            page,
-            pageSize,
-            products = searchResponse.Documents
-        });
+        return Results.Problem($"Search exception: {ex.Message}");
     }
-    
-    return Results.Problem("Search failed");
 });
 
 // Get product by ID
@@ -180,7 +189,7 @@ app.MapGet("/api/brands", async (ElasticsearchClient client) =>
         .Aggregations(a => a
             .Add("brands", new Aggregation
             {
-                Terms = new TermsAggregation { Field = "brand", Size = 100 }
+                Terms = new TermsAggregation { Field = "brand.keyword", Size = 100 }
             })
         )
     );
@@ -206,7 +215,7 @@ app.MapGet("/api/categories", async (ElasticsearchClient client) =>
         .Aggregations(a => a
             .Add("categories", new Aggregation
             {
-                Terms = new TermsAggregation { Field = "category", Size = 100 }
+                Terms = new TermsAggregation { Field = "category.keyword", Size = 100 }
             })
         )
     );
