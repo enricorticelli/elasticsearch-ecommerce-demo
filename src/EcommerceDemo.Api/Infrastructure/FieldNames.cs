@@ -94,7 +94,7 @@ public static class ProductFields
     public static string Description => FieldNames.Get<Product>(p => p.Description);
     public static string Price => FieldNames.Get<Product>(p => p.Price);
     public static string Brand => FieldNames.Get<Product>(p => p.Brand);
-    public static string BrandKeyword => FieldNames.Keyword<Product>(p => p.Brand);
+    public static string BrandKeyword => FieldNames.Get<Product>(p => p.Brand);
     public static string Stock => FieldNames.Get<Product>(p => p.Stock);
     public static string ImageUrl => FieldNames.Get<Product>(p => p.ImageUrl);
     public static string CreatedAt => FieldNames.Get<Product>(p => p.CreatedAt);
@@ -102,7 +102,7 @@ public static class ProductFields
     // Campi nested per Categories
     public static string Categories => FieldNames.Get<Product>(p => p.Categories);
     public static string CategoriesName => FieldNames.Nested<Product, CategoryNode>(p => p.Categories, c => c.Name);
-    public static string CategoriesNameKeyword => FieldNames.NestedKeyword<Product, CategoryNode>(p => p.Categories, c => c.Name);
+    public static string CategoriesNameKeyword => FieldNames.Nested<Product, CategoryNode>(p => p.Categories, c => c.Name);
     public static string CategoriesLevel => FieldNames.Nested<Product, CategoryNode>(p => p.Categories, c => c.Level);
 }
 

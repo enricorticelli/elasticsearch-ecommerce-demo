@@ -14,6 +14,12 @@ public static class SetupEndpoints
             return Results.Ok(new { message = "Index initialized successfully" });
         });
 
+        group.MapPost("/reset", async (IProductService service, CancellationToken cancellationToken = default) =>
+        {
+            await service.ResetIndexAsync(cancellationToken);
+            return Results.Ok(new { message = "Index reset successfully" });
+        });
+
         group.MapPost("/seed", async (IProductService service, int count = 50, CancellationToken cancellationToken = default) =>
         {
             await service.SeedProductsAsync(count, cancellationToken);

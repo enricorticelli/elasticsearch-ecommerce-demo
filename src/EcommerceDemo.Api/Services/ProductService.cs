@@ -62,6 +62,16 @@ public class ProductService : IProductService
     {
         if (await _repository.IndexExistsAsync(IndexName, cancellationToken))
         {
+            return; // Index already exists, skip initialization
+        }
+
+        await _repository.CreateIndexAsync(IndexName, cancellationToken);
+    }
+
+    public async Task ResetIndexAsync(CancellationToken cancellationToken = default)
+    {
+        if (await _repository.IndexExistsAsync(IndexName, cancellationToken))
+        {
             await _repository.DeleteIndexAsync(IndexName, cancellationToken);
         }
 

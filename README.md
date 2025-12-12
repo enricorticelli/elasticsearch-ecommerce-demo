@@ -1,246 +1,114 @@
 # Elasticsearch E-commerce Demo
 
-Demo ricerca prodotti Ecommerce con .NET 10, Elasticsearch, Kibana e Next.js
+Demo full-stack per la ricerca prodotti che combina Minimal APIs .NET 10, Elasticsearch 8.11, Kibana e frontend Next.js 16 orchestrati tramite .NET Aspire. I vecchi script `start.sh` / `start.bat` e il `docker-compose` legacy sono stati rimossi: ora l'AppHost Aspire è l'unico punto di ingresso per l'intero ambiente.
 
-## Architettura
+## Stack
+- **Backend**: Minimal APIs .NET 10 + Elastic.Clients.Elasticsearch + Bogus per il seeding
+- **Ricerca**: Elasticsearch 8.11 (single-node, X-Pack security disabilitato)
+- **Osservabilità**: Kibana 8.11
+- **Frontend**: Next.js 16 (App Router, Tailwind CSS)
+- **Orchestrazione**: .NET Aspire (AppHost + ServiceDefaults con health checks, resilienza, ecc.)
 
-Questa è un'applicazione e-commerce completa con:
+## Prerequisiti
+1. **.NET 8/10 SDK** con i workload Aspire (installabili via `dotnet workload install aspire`)
+2. **Docker Desktop** o un runtime compatibile: Aspire avvia i container Elasticsearch e Kibana
+3. **Node.js 20+** (npm è usato automaticamente dall'AppHost quando esegue `npm run dev`)
+4. **curl** (facoltativo ma utile per inizializzare e popolare Elasticsearch)
 
-- **Backend**: .NET 10 con Minimal APIs
-- **Database**: Elasticsearch 8.11 per ricerca full-text
-- **Visualizzazione**: Kibana per monitoraggio ed analytics
-- **Frontend**: Next.js 16 con TypeScript e Tailwind CSS
-- **Orchestrazione**: .NET Aspire (AppHost)
+## Avvio rapido con Aspire
+1. Ripristina le dipendenze (solo se non è stato ancora fatto):
+   ```bash
+   dotnet restore
+   ```
+2. Avvia tutto l'ambiente con l'AppHost:
+   ```bash
+   dotnet run --project src/EcommerceDemo.AppHost/EcommerceDemo.AppHost.csproj
+   ```
+   L'AppHost esegue queste attività:
+   - Crea i container `aspire-ecommerce-demo-elasticsearch` (dati persistenti) e `aspire-ecommerce-demo-kibana`
+   - Pubblica la Minimal API .NET e il frontend Next.js sulla rete Aspire
+   - Lancia `npm install` + `npm run dev` per il frontend quando necessario
+   - Espone una dashboard Aspire con tutti gli endpoint e gli health check
 
-## Funzionalità
+3. Attendi che Elasticsearch e l'API risultino `Healthy` nella dashboard Aspire (la prima esecuzione può richiedere ~1 minuto per via dell'installazione npm).
 
-### Backend API (.NET 10)
-
-- **POST /api/init**: Inizializza l'indice Elasticsearch
-- **POST /api/seed**: Genera prodotti fake con brand e categorie (usa Bogus)
-- **GET /api/products/search**: Ricerca prodotti con filtri (query, brand, category)
-- **GET /api/products/{id}**: Ottieni dettagli prodotto
-- **GET /api/brands**: Ottieni tutti i brand
-- **GET /api/categories**: Ottieni tutte le categorie
-- **Categorie multilivello**: ogni prodotto gestisce n nodi di categoria, ciascuno con un livello (es. livello 1 macro categoria, livello 2 sottoinsiemi, livello 3 sottosezioni)
-
-### Frontend (Next.js)
-
-- Pagina principale con griglia prodotti
-- Ricerca full-text
-- Filtri per brand e categoria
-- Paginazione
-- Pagina dettaglio prodotto
-- Design responsive con Tailwind CSS
-
-## Requisiti
-
-- Docker Desktop (Aspire usa i container per Elasticsearch e Kibana)
-- .NET 10 SDK (contiene anche .NET Aspire AppHost)
-- Node.js 20+ / npm (per il frontend Next.js)
-
-## Avvio Rapido con .NET Aspire
-
-### Opzione 1: Script Automatico
-
-**Linux/Mac:**
+## Inizializzazione dei dati
+Elasticsearch parte vuoto. Una volta che l'API è disponibile, apri un terminale e lancia:
 ```bash
-chmod +x start.sh
-./start.sh
+curl -X POST http://localhost:5000/api/init
+curl -X POST "http://localhost:5000/api/seed?count=100"
 ```
+`/api/init` ricrea l'indice `products` con il mapping aggiornato per le categorie multilivello; `/api/seed` genera prodotti fittizi (50 di default se `count` non è specificato).
 
-**Windows:**
-```bash
-start.bat
-```
+## Servizi esposti
+- Frontend Next.js: http://localhost:3000
+- API .NET: http://localhost:5000
+- Kibana: http://localhost:5601
+- Elasticsearch: http://localhost:9200
 
-Gli script:
-- verificano la presenza di .NET SDK, Docker e Node.js
-- installano automaticamente le dipendenze del frontend (solo al primo avvio)
-- avviano l'AppHost Aspire (`dotnet run src/EcommerceDemo.AppHost`)
-- attendono che Elasticsearch + API siano pronti
-- inizializzano l'indice e generano 100 prodotti di esempio
+(Gli URL possono cambiare se modifichi le porte nell'AppHost. Controlla sempre la dashboard Aspire o i log.)
 
-Al termine trovi tutto pronto su:
-- **Frontend** http://localhost:3000
-- **Backend** http://localhost:5000
-- **Kibana** http://localhost:5601
-- **Elasticsearch** http://localhost:9200
+## API principali
+`/api/products/search`  
+Parametri opzionali: `q`, `brand`, `category`, `page`, `pageSize`. Restituisce `total`, pagina corrente e lista prodotti.
 
-### Opzione 2: Manuale
+`/api/products/{id}`  
+Dettaglio singolo prodotto, 404 se non trovato.
 
-1. Clona il repository:
-    ```bash
-    git clone https://github.com/enricorticelli/elasticsearch-ecommerce-demo.git
-    cd elasticsearch-ecommerce-demo
-    ```
-2. Installa le dipendenze del frontend:
-    ```bash
-    cd frontend
-    npm install
-    cd ..
-    ```
-3. Avvia tutti i servizi tramite .NET Aspire:
-    ```bash
-    dotnet run --project src/EcommerceDemo.AppHost/EcommerceDemo.AppHost.csproj
-    ```
-   L'AppHost orchestra Elasticsearch, Kibana, backend API e frontend.
-4. In un secondo terminale inizializza l'indice e genera i dati:
-    ```bash
-    curl -X POST http://localhost:5000/api/init
-    curl -X POST "http://localhost:5000/api/seed?count=100"
-    ```
-   > L'endpoint `/api/init` ricrea l'indice `products` per assicurare il mapping aggiornato delle categorie multilivello.
-5. Accedi a frontend, backend e Kibana tramite gli URL indicati nei log di Aspire.
+`/api/brands` e `/api/categories`  
+Supportano il frontend per popolare i filtri brand e categorie a più livelli.
 
-## Sviluppo Locale
+`/api/init` e `/api/seed`  
+Endpoint di setup per ricreare l'indice e popolare Elasticsearch.
 
-### Tutti i servizi (consigliato)
+## Sviluppo mirato
+Vuoi lavorare su un servizio alla volta?
 
-```bash
-dotnet run --project src/EcommerceDemo.AppHost/EcommerceDemo.AppHost.csproj
-```
+- **Solo API**  
+  ```bash
+  cd src/EcommerceDemo.Api
+  dotnet run --urls http://localhost:5000
+  ```
+  Assicurati di avere Elasticsearch già attivo (puoi lasciar girare l'AppHost per i container).
 
-L'AppHost avvia e mantiene sincronizzati frontend, backend, Elasticsearch e Kibana.
-
-### Solo backend
-
-```bash
-cd src/EcommerceDemo.Api
-dotnet run --urls http://localhost:5000
-```
-
-Assicurati che Elasticsearch sia disponibile (puoi lasciar girare l'AppHost in parallelo).
-
-### Solo frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Il frontend userà `NEXT_PUBLIC_API_URL` (default `http://localhost:5000`). Ricordati di avviare comunque l'API tramite AppHost o `dotnet run`.
-
-## Struttura del Progetto
-
-```
-.
-├── docker-compose.yml           # Config legacy (opzionale)
-├── src/
-│   ├── EcommerceDemo.AppHost/  # Orchestratore .NET Aspire
-│   ├── EcommerceDemo.Api/      # Backend .NET 10
-│   │   ├── Program.cs          # Minimal APIs
-│   │   ├── Models/
-│   │   │   └── Product.cs      # Modello prodotto
-│   │   └── Dockerfile
-│   └── EcommerceDemo.ServiceDefaults/  # Configurazioni condivise
-└── frontend/                    # Frontend Next.js
-    ├── app/
-    │   ├── page.tsx            # Pagina principale
-    │   └── products/[id]/
-    │       └── page.tsx        # Dettaglio prodotto
-    ├── next.config.ts
-    └── Dockerfile
-```
-
-## Tecnologie Utilizzate
-
-### Backend
-- **.NET 10**: Framework moderno ad alte prestazioni
-- **Minimal APIs**: API leggere e performanti
-- **Elastic.Clients.Elasticsearch**: Client ufficiale Elasticsearch
-- **Bogus**: Generazione dati fake
-
-### Frontend
-- **Next.js 16**: Framework React con App Router
-- **TypeScript**: Type safety
-- **Tailwind CSS**: Styling utility-first
-- **React Hooks**: Gestione stato
-
-### Database & Search
-- **Elasticsearch 8.11**: Motore di ricerca full-text distribuito
-- **Kibana 8.11**: Visualizzazione e analytics
-
-## API Examples
-
-### Ricerca prodotti
-```bash
-# Ricerca per query
-curl "http://localhost:5000/api/products/search?q=smartphone"
-
-# Filtro per brand
-curl "http://localhost:5000/api/products/search?brand=Apple"
-
-# Filtro per categoria
-curl "http://localhost:5000/api/products/search?category=Electronics"
-
-# Combinazione filtri con paginazione
-curl "http://localhost:5000/api/products/search?q=laptop&brand=Dell&page=1&pageSize=10"
-```
-
-### Dettaglio prodotto
-```bash
-curl "http://localhost:5000/api/products/{product-id}"
-```
-
-### Lista brand e categorie
-```bash
-curl "http://localhost:5000/api/brands"
-curl "http://localhost:5000/api/categories"
-```
-
-`/api/categories` restituisce oggetti del tipo:
-
-```json
-[
-  { "level": 1, "categories": ["Electronics", "Home & Living"] },
-  { "level": 2, "categories": ["Computers", "Streaming", "Decor"] },
-  { "level": 3, "categories": ["Laptops", "VR", "Cookware"] }
-]
-```
-
-In questo modo il frontend può popolare filtri o breadcrumb basati sul livello della categoria.
+- **Solo frontend**  
+  ```bash
+  cd src/frontend
+  npm install
+  npm run dev
+  ```
+  Configura l'API via `NEXT_PUBLIC_API_URL` (default `http://localhost:5000`).
 
 ## Configurazione
+### Backend
+- `ConnectionStrings__elasticsearch`: URL dell'istanza Elasticsearch (di default `http://localhost:9200`)
+- `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`: classiche variabili ASP.NET
 
-### Variabili d'Ambiente
+### Frontend
+- `NEXT_PUBLIC_API_URL`: URL base dell'API
+- `PORT`: impostato dall'AppHost a `3000`
 
-#### Backend
-- `ConnectionStrings__elasticsearch`: URL Elasticsearch (default: http://localhost:9200)
-- `ASPNETCORE_ENVIRONMENT`: Ambiente (Development/Production)
-- `ASPNETCORE_URLS`: URL di ascolto
+Le override possono essere definite in `src/EcommerceDemo.AppHost/appsettings*.json` o via variabili d'ambiente Aspire.
 
-#### Frontend
-- `NEXT_PUBLIC_API_URL`: URL del backend API (default: http://localhost:5000)
+## Struttura del repository
+```
+.
+├── src/
+│   ├── EcommerceDemo.AppHost/        # AppHost Aspire: definisce container + progetti
+│   ├── EcommerceDemo.Api/            # Minimal APIs, endpoint prodotti/metadata/setup
+│   ├── EcommerceDemo.ServiceDefaults # Config condivise (health, resilience, logging)
+│   └── ...
+├── src/frontend/                     # Next.js 16 con App Router
+└── EcommerceDemo.sln
+```
 
-## Produzione
-
-.NET Aspire è pensato per lo sviluppo locale. Per la produzione puoi:
-
-1. Costruire le immagini Docker (ad esempio con `docker build` o `docker compose build`)
-2. Distribuire le immagini con l'orchestratore che preferisci (Docker Compose, Kubernetes, Azure Container Apps, ecc.)
-3. Configurare le variabili d'ambiente (`ConnectionStrings__elasticsearch`, `NEXT_PUBLIC_API_URL`, ecc.) in base all'infrastruttura
-
-## Troubleshooting
-
-### Elasticsearch non si avvia
-- Verifica la memoria disponibile (minimo 512MB)
-- Controlla i log dell'AppHost (.aspire.log su Linux/Mac o finestra "Aspire AppHost" su Windows)
-
-### Frontend non si connette al backend
-- Verifica che `NEXT_PUBLIC_API_URL` sia configurato correttamente
-- Controlla che il backend sia in esecuzione: `curl http://localhost:5000/api/brands`
-
-### Nessun prodotto visualizzato
-- Assicurati di aver eseguito `/api/init` e `/api/seed`
-- Verifica che l'indice Elasticsearch sia stato creato: `curl http://localhost:9200/products`
+## Troubleshooting rapido
+- **Elasticsearch non parte**: controlla che Docker abbia almeno 2GB di RAM disponibili e riavvia l'AppHost (il container usa `ES_JAVA_OPTS=-Xms512m -Xmx512m`).
+- **Il frontend non mostra prodotti**: verifica di aver chiamato `/api/init` e `/api/seed` e di avere `NEXT_PUBLIC_API_URL` puntato alla tua API.
+- **Aspire segnala `Unhealthy`**: apri i log del relativo componente dalla dashboard Aspire per capire se mancano dipendenze o variabili d'ambiente.
 
 ## Licenza
-
 MIT
 
 ## Autore
-
 Enrico Rticelli
-
