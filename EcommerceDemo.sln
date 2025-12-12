@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcommerceDemo.Api", "src\Ec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcommerceDemo.ServiceDefaults", "src\EcommerceDemo.ServiceDefaults\EcommerceDemo.ServiceDefaults.csproj", "{879E9ED3-1EBA-4224-8B0A-13EC623B6A90}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcommerceDemo.AppHost", "src\EcommerceDemo.AppHost\EcommerceDemo.AppHost.csproj", "{C9269143-FAFF-4AE7-A38A-050A5D2784DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,6 +45,18 @@ Global
 		{879E9ED3-1EBA-4224-8B0A-13EC623B6A90}.Release|x64.Build.0 = Release|Any CPU
 		{879E9ED3-1EBA-4224-8B0A-13EC623B6A90}.Release|x86.ActiveCfg = Release|Any CPU
 		{879E9ED3-1EBA-4224-8B0A-13EC623B6A90}.Release|x86.Build.0 = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Debug|x86.Build.0 = Debug|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|x64.Build.0 = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|x86.ActiveCfg = Release|Any CPU
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -50,5 +64,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{7D0FE433-20DD-4077-824E-230589EB826F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{879E9ED3-1EBA-4224-8B0A-13EC623B6A90} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{C9269143-FAFF-4AE7-A38A-050A5D2784DD} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

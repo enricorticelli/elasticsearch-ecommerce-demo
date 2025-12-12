@@ -10,7 +10,7 @@ Questa è un'applicazione e-commerce completa con:
 - **Database**: Elasticsearch 8.11 per ricerca full-text
 - **Visualizzazione**: Kibana per monitoraggio ed analytics
 - **Frontend**: Next.js 16 con TypeScript e Tailwind CSS
-- **Orchestrazione**: Docker Compose
+- **Orchestrazione**: .NET Aspire (AppHost)
 
 ## Funzionalità
 
@@ -22,6 +22,7 @@ Questa è un'applicazione e-commerce completa con:
 - **GET /api/products/{id}**: Ottieni dettagli prodotto
 - **GET /api/brands**: Ottieni tutti i brand
 - **GET /api/categories**: Ottieni tutte le categorie
+- **Categorie multilivello**: ogni prodotto gestisce n nodi di categoria, ciascuno con un livello (es. livello 1 macro categoria, livello 2 sottoinsiemi, livello 3 sottosezioni)
 
 ### Frontend (Next.js)
 
@@ -34,11 +35,11 @@ Questa è un'applicazione e-commerce completa con:
 
 ## Requisiti
 
-- Docker e Docker Compose
-- .NET 10 SDK (per sviluppo locale)
-- Node.js 20+ (per sviluppo locale)
+- Docker Desktop (Aspire usa i container per Elasticsearch e Kibana)
+- .NET 10 SDK (contiene anche .NET Aspire AppHost)
+- Node.js 20+ / npm (per il frontend Next.js)
 
-## Avvio Rapido con Docker Compose
+## Avvio Rapido con .NET Aspire
 
 ### Opzione 1: Script Automatico
 
@@ -53,56 +54,65 @@ chmod +x start.sh
 start.bat
 ```
 
-Questo script:
-- Avvia Elasticsearch e Kibana
-- Attende che i servizi siano pronti
-- Avvia l'API backend
-- Inizializza l'indice
-- Genera 100 prodotti di esempio
+Gli script:
+- verificano la presenza di .NET SDK, Docker e Node.js
+- installano automaticamente le dipendenze del frontend (solo al primo avvio)
+- avviano l'AppHost Aspire (`dotnet run src/EcommerceDemo.AppHost`)
+- attendono che Elasticsearch + API siano pronti
+- inizializzano l'indice e generano 100 prodotti di esempio
+
+Al termine trovi tutto pronto su:
+- **Frontend** http://localhost:3000
+- **Backend** http://localhost:5000
+- **Kibana** http://localhost:5601
+- **Elasticsearch** http://localhost:9200
 
 ### Opzione 2: Manuale
 
 1. Clona il repository:
-```bash
-git clone https://github.com/enricorticelli/elasticsearch-ecommerce-demo.git
-cd elasticsearch-ecommerce-demo
-```
-
-2. Avvia tutti i servizi:
-```bash
-docker compose up -d
-```
-
-3. Attendi che tutti i servizi siano pronti (circa 1-2 minuti)
-
-4. Inizializza l'indice Elasticsearch:
-```bash
-curl -X POST http://localhost:5000/api/init
-```
-
-5. Genera dati fake (esempio: 100 prodotti):
-```bash
-curl -X POST "http://localhost:5000/api/seed?count=100"
-```
-
-6. Accedi alle applicazioni:
-   - **Frontend**: http://localhost:3000
-   - **Backend API**: http://localhost:5000
-   - **Kibana**: http://localhost:5601
-   - **Elasticsearch**: http://localhost:9200
+    ```bash
+    git clone https://github.com/enricorticelli/elasticsearch-ecommerce-demo.git
+    cd elasticsearch-ecommerce-demo
+    ```
+2. Installa le dipendenze del frontend:
+    ```bash
+    cd frontend
+    npm install
+    cd ..
+    ```
+3. Avvia tutti i servizi tramite .NET Aspire:
+    ```bash
+    dotnet run --project src/EcommerceDemo.AppHost/EcommerceDemo.AppHost.csproj
+    ```
+   L'AppHost orchestra Elasticsearch, Kibana, backend API e frontend.
+4. In un secondo terminale inizializza l'indice e genera i dati:
+    ```bash
+    curl -X POST http://localhost:5000/api/init
+    curl -X POST "http://localhost:5000/api/seed?count=100"
+    ```
+   > L'endpoint `/api/init` ricrea l'indice `products` per assicurare il mapping aggiornato delle categorie multilivello.
+5. Accedi a frontend, backend e Kibana tramite gli URL indicati nei log di Aspire.
 
 ## Sviluppo Locale
 
-### Backend
+### Tutti i servizi (consigliato)
+
+```bash
+dotnet run --project src/EcommerceDemo.AppHost/EcommerceDemo.AppHost.csproj
+```
+
+L'AppHost avvia e mantiene sincronizzati frontend, backend, Elasticsearch e Kibana.
+
+### Solo backend
 
 ```bash
 cd src/EcommerceDemo.Api
-dotnet run
+dotnet run --urls http://localhost:5000
 ```
 
-L'API sarà disponibile su http://localhost:5000
+Assicurati che Elasticsearch sia disponibile (puoi lasciar girare l'AppHost in parallelo).
 
-### Frontend
+### Solo frontend
 
 ```bash
 cd frontend
@@ -110,20 +120,15 @@ npm install
 npm run dev
 ```
 
-Il frontend sarà disponibile su http://localhost:3000
-
-### Elasticsearch & Kibana
-
-```bash
-docker-compose up elasticsearch kibana
-```
+Il frontend userà `NEXT_PUBLIC_API_URL` (default `http://localhost:5000`). Ricordati di avviare comunque l'API tramite AppHost o `dotnet run`.
 
 ## Struttura del Progetto
 
 ```
 .
-├── docker-compose.yml           # Orchestrazione Docker
+├── docker-compose.yml           # Config legacy (opzionale)
 ├── src/
+│   ├── EcommerceDemo.AppHost/  # Orchestratore .NET Aspire
 │   ├── EcommerceDemo.Api/      # Backend .NET 10
 │   │   ├── Program.cs          # Minimal APIs
 │   │   ├── Models/
@@ -185,6 +190,18 @@ curl "http://localhost:5000/api/brands"
 curl "http://localhost:5000/api/categories"
 ```
 
+`/api/categories` restituisce oggetti del tipo:
+
+```json
+[
+  { "level": 1, "categories": ["Electronics", "Home & Living"] },
+  { "level": 2, "categories": ["Computers", "Streaming", "Decor"] },
+  { "level": 3, "categories": ["Laptops", "VR", "Cookware"] }
+]
+```
+
+In questo modo il frontend può popolare filtri o breadcrumb basati sul livello della categoria.
+
 ## Configurazione
 
 ### Variabili d'Ambiente
@@ -199,25 +216,17 @@ curl "http://localhost:5000/api/categories"
 
 ## Produzione
 
-Per il deployment in produzione:
+.NET Aspire è pensato per lo sviluppo locale. Per la produzione puoi:
 
-1. Costruisci le immagini Docker:
-```bash
-docker-compose build
-```
-
-2. Avvia con le configurazioni di produzione:
-```bash
-docker-compose up -d
-```
-
-3. Configura le variabili d'ambiente appropriate per il tuo ambiente
+1. Costruire le immagini Docker (ad esempio con `docker build` o `docker compose build`)
+2. Distribuire le immagini con l'orchestratore che preferisci (Docker Compose, Kubernetes, Azure Container Apps, ecc.)
+3. Configurare le variabili d'ambiente (`ConnectionStrings__elasticsearch`, `NEXT_PUBLIC_API_URL`, ecc.) in base all'infrastruttura
 
 ## Troubleshooting
 
 ### Elasticsearch non si avvia
 - Verifica la memoria disponibile (minimo 512MB)
-- Controlla i log: `docker-compose logs elasticsearch`
+- Controlla i log dell'AppHost (.aspire.log su Linux/Mac o finestra "Aspire AppHost" su Windows)
 
 ### Frontend non si connette al backend
 - Verifica che `NEXT_PUBLIC_API_URL` sia configurato correttamente

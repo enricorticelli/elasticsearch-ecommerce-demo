@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Microsoft.Extensions.Hosting;
+namespace EcommerceDemo.ServiceDefaults;
 
 public static class Extensions
 {

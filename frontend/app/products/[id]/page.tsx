@@ -4,17 +4,43 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+interface CategoryNode {
+  name: string;
+  level: number;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
   brand: string;
-  category: string;
+  categories: CategoryNode[];
   stock: number;
   imageUrl: string;
   createdAt: string;
 }
+
+const groupCategories = (categories?: CategoryNode[]) => {
+  if (!categories || categories.length === 0) {
+    return [];
+  }
+
+  const grouped = categories.reduce<Record<number, Set<string>>>((acc, node) => {
+    if (!acc[node.level]) {
+      acc[node.level] = new Set();
+    }
+    acc[node.level].add(node.name);
+    return acc;
+  }, {});
+
+  return Object.entries(grouped)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([level, names]) => ({
+      level: Number(level),
+      names: Array.from(names).sort(),
+    }));
+};
 
 export default function ProductDetail() {
   const params = useParams();
@@ -80,6 +106,12 @@ export default function ProductDetail() {
     );
   }
 
+  const categoryLevels = groupCategories(product.categories);
+  const categorySummary =
+    categoryLevels.length > 0
+      ? categoryLevels.map((group) => `L${group.level}: ${group.names.join(', ')}`).join(' • ')
+      : 'No categories';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -106,7 +138,7 @@ export default function ProductDetail() {
             <div className="flex flex-col">
               <div className="mb-4">
                 <div className="text-sm text-gray-500 mb-2">
-                  {product.brand} • {product.category}
+                  {product.brand} • {categorySummary}
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">
                   {product.name}
@@ -140,8 +172,19 @@ export default function ProductDetail() {
                   <span className="ml-2 text-gray-600">{product.brand}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-900">Category:</span>
-                  <span className="ml-2 text-gray-600">{product.category}</span>
+                  <span className="font-semibold text-gray-900">Categories:</span>
+                  <div className="mt-2 space-y-1">
+                    {categoryLevels.length === 0 ? (
+                      <span className="ml-2 text-gray-600">No categories</span>
+                    ) : (
+                      categoryLevels.map((group) => (
+                        <div key={group.level} className="ml-2 text-gray-600">
+                          <span className="font-semibold text-gray-800">Level {group.level}:</span>{' '}
+                          {group.names.join(', ')}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">Product ID:</span>

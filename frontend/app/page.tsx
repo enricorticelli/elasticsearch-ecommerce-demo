@@ -3,13 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+interface CategoryNode {
+  name: string;
+  level: number;
+}
+
+interface CategoryGroup {
+  level: number;
+  categories: string[];
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
   brand: string;
-  category: string;
+  categories: CategoryNode[];
   stock: number;
   imageUrl: string;
   createdAt: string;
@@ -22,13 +32,32 @@ interface SearchResponse {
   products: Product[];
 }
 
+const formatCategoryDisplay = (categories?: CategoryNode[]) => {
+  if (!categories || categories.length === 0) {
+    return 'No categories';
+  }
+
+  const grouped = categories.reduce<Record<number, Set<string>>>((acc, node) => {
+    if (!acc[node.level]) {
+      acc[node.level] = new Set();
+    }
+    acc[node.level].add(node.name);
+    return acc;
+  }, {});
+
+  return Object.entries(grouped)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([level, names]) => `L${level}: ${Array.from(names).sort().join(', ')}`)
+    .join(' • ');
+};
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [brands, setBrands] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<CategoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -57,7 +86,7 @@ export default function Home() {
   const fetchCategories = async () => {
     try {
       const response = await fetch(`${API_URL}/api/categories`);
-      const data = await response.json();
+      const data: CategoryGroup[] = await response.json();
       setCategories(data);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -147,10 +176,14 @@ export default function Home() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
+              {categories.map((group) => (
+                <optgroup key={group.level} label={`Level ${group.level}`}>
+                  {group.categories.map((category) => (
+                    <option key={`${group.level}-${category}`} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -184,7 +217,7 @@ export default function Home() {
                   </div>
                   <div className="p-4">
                     <div className="text-xs text-gray-500 mb-1">
-                      {product.brand} • {product.category}
+                      {product.brand} • {formatCategoryDisplay(product.categories)}
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
                       {product.name}
