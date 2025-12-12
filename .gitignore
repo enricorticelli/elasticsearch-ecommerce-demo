@@ -1,0 +1,25 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.swp
+.vs/
+.vscode/
+
+## Node.js
+node_modules/
+.next/
+out/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+## Docker
+.docker/
+
+## OS
+.DS_Store
+Thumbs.db
