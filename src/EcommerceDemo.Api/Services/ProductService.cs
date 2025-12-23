@@ -84,13 +84,36 @@ public class ProductService : IProductService
         await _repository.BulkInsertAsync(IndexName, products, cancellationToken);
     }
 
-    public async Task<SearchResult<Product>> SearchProductsAsync(string? query, string? brand, string? category, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<SearchResult<Product>> SearchProductsAsync(
+        string? query,
+        string? brand,
+        string? category,
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var from = (page - 1) * pageSize;
-        var builtQuery = BuildSearchQuery(query, brand, category);
+        var builtQuery = BuildSearchQuery(query, brand, category, minPrice, maxPrice);
 
-        var (total, items) = await _repository.SearchAsync(IndexName, builtQuery, from, pageSize, cancellationToken);
-        return new SearchResult<Product>(total, page, pageSize, items);
+        var (total, items, min, max) = await _repository.SearchAsync(IndexName, builtQuery, from, pageSize, sort, cancellationToken);
+        return new SearchResult<Product>(total, page, pageSize, items, min, max);
+    }
+
+    public async Task<IReadOnlyCollection<AutocompleteHit>> AutocompleteProductsAsync(
+        string query,
+        int size,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        var builtQuery = BuildAutocompleteQuery(query);
+        return await _repository.AutocompleteAsync(IndexName, builtQuery, size, cancellationToken);
     }
 
     public Task<Product?> GetProductByIdAsync(string id, CancellationToken cancellationToken = default)
@@ -102,7 +125,7 @@ public class ProductService : IProductService
     public Task<IReadOnlyList<CategoryGroup>> GetCategoriesAsync(CancellationToken cancellationToken = default)
         => _repository.GetCategoriesAsync(IndexName, cancellationToken);
 
-    private static Query BuildSearchQuery(string? query, string? brand, string? category)
+    private static Query BuildSearchQuery(string? query, string? brand, string? category, decimal? minPrice, decimal? maxPrice)
     {
         var mustQueries = new List<Query>();
 
@@ -149,12 +172,60 @@ public class ProductService : IProductService
             });
         }
 
+        if (minPrice.HasValue || maxPrice.HasValue)
+        {
+            mustQueries.Add(new NumberRangeQuery
+            {
+                Field = ProductFields.Price,
+                Gte = minPrice.HasValue ? (double)minPrice.Value : null,
+                Lte = maxPrice.HasValue ? (double)maxPrice.Value : null
+            });
+        }
+
         if (mustQueries.Count == 0)
         {
             return new MatchAllQuery();
         }
 
         return new BoolQuery { Must = mustQueries };
+    }
+
+    private static Query BuildAutocompleteQuery(string query)
+    {
+        var shouldQueries = new List<Query>
+        {
+            new MultiMatchQuery
+            {
+                Query = query,
+                Type = TextQueryType.BoolPrefix,
+                Fields = new Elastic.Clients.Elasticsearch.Field[]
+                {
+                    ProductFields.Name,
+                    ProductFields.Name2Gram,
+                    ProductFields.Name3Gram
+                }
+            },
+            new PrefixQuery
+            {
+                Field = ProductFields.Brand,
+                Value = query.ToLowerInvariant()
+            },
+            new NestedQuery
+            {
+                Path = ProductFields.Categories,
+                Query = new PrefixQuery
+                {
+                    Field = ProductFields.CategoriesNameKeyword,
+                    Value = query.ToLowerInvariant()
+                }
+            }
+        };
+
+        return new BoolQuery
+        {
+            Should = shouldQueries,
+            MinimumShouldMatch = 1
+        };
     }
 
     private List<CategoryNode> BuildCategories(Faker faker)

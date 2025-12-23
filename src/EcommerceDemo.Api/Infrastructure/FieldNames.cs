@@ -91,6 +91,9 @@ public static class ProductFields
     // Campi semplici
     public static string Id => FieldNames.Get<Product>(p => p.Id);
     public static string Name => FieldNames.Get<Product>(p => p.Name);
+    public static string NameKeyword => FieldNames.Keyword<Product>(p => p.Name);
+    public static string Name2Gram => $"{Name}._2gram";
+    public static string Name3Gram => $"{Name}._3gram";
     public static string Description => FieldNames.Get<Product>(p => p.Description);
     public static string Price => FieldNames.Get<Product>(p => p.Price);
     public static string Brand => FieldNames.Get<Product>(p => p.Brand);

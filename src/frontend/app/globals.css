@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4efe6;
+  --foreground: #1f1b16;
+  --color-sand: #f4efe6;
+  --color-cream: #fffaf4;
+  --color-ink: #1f1b16;
+  --color-ash: #8f8377;
+  --color-moss: #2f6b5d;
+  --color-amber: #e48a2d;
+  --color-stone: #d8cdbf;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-body);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "Helvetica Neue", Arial, sans-serif;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(47, 107, 93, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(228, 138, 45, 0.12), transparent 40%);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display), "Times New Roman", serif;
+}
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.8s ease both;
+}
+
+.autocomplete-suggestion em {
+  color: var(--color-ash);
+  font-style: normal;
 }
